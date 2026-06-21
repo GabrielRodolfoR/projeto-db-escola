@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Date, DateTime
 from sqlalchemy.orm import relationship
+from datetime import datetime
 
 from app.core.database import Base
 
@@ -13,8 +14,11 @@ class Student(Base):
     data_nascimento = Column(Date)
     email = Column(String(100))
     telefone = Column(String(20))
-    data_cadastro = Column(DateTime)
-
+    data_cadastro = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow
+    )
     enrollments = relationship(
         "Enrollment",
         back_populates="student"

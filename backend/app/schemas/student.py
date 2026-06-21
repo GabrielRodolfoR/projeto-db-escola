@@ -18,7 +18,7 @@ class StudentUpdate(BaseModel):
     nome: str | None = None
     cpf: str | None = None
     data_nascimento: date | None = None
-    email: EmailStr | None = None
+    email: EmailStr | None = None   
     telefone: str | None = None
 
 
