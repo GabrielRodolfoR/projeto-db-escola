@@ -2,8 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
  
-DATABASE_URL = "postgresql+psycopg2://postgres:0000@127.0.0.1:8080/postgres" # Mudar para as credencias de conexao com o banco Postgress
-
+DATABASE_URL = "postgresql://postgres:123456@localhost:5432/escola" # Mudar para as credencias de conexao com o banco Postgress
 engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(
