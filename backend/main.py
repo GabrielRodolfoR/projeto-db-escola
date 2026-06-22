@@ -1,5 +1,6 @@
 from fastapi import FastAPI
-
+from fastapi.middleware.cors import CORSMiddleware
+import app.models
 from app.routers.student_router import router as student_router
 from app.routers.teacher_router import router as teacher_router
 from app.routers.subject_router import router as subject_router
@@ -13,6 +14,17 @@ from app.routers.user_router import router as user_router
 
 app = FastAPI(
     title="School Management API"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(student_router)
