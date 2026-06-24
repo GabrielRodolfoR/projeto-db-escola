@@ -5,6 +5,7 @@ import {
   criarRegistro,
   deletarRegistro,
   listarTodos,
+  listarRelatorio,
 } from "./services/api";
 
 function dataHoje() {
@@ -259,21 +260,33 @@ const telas = {
 };
 
 const relatorios = {
-  "alunos-por-turma": {
-    titulo: "Alunos por turma",
-    descricao: "Mostra a quantidade de alunos com matrícula ativa em cada turma.",
-  },
-  "boletim-alunos": {
+  "boletim-aluno": {
     titulo: "Boletim dos alunos",
-    descricao: "Mostra aluno, turma, matéria, nota e situação.",
+    descricao: "Mostra as notas e médias dos alunos por matéria.",
   },
-  "frequencia-alunos": {
+  "existencia-aluno": {
+    titulo: "Existência de alunos",
+    descricao: "Mostra informações consolidadas dos alunos cadastrados.",
+  },
+  "frequencia-aluno": {
     titulo: "Frequência dos alunos",
-    descricao: "Mostra presenças, faltas e percentual de presença.",
+    descricao: "Mostra a frequência dos alunos nas aulas.",
   },
-  "aulas-professores": {
-    titulo: "Aulas por professor",
-    descricao: "Mostra aulas vinculadas a professores, matérias e turmas.",
+  "grade-turma": {
+    titulo: "Grade das turmas",
+    descricao: "Mostra turma, matéria e professor responsável.",
+  },
+  "media-aluno-materia": {
+    titulo: "Média por aluno e matéria",
+    descricao: "Mostra a média dos alunos em cada matéria.",
+  },
+  "professor-disciplinas": {
+    titulo: "Disciplinas por professor",
+    descricao: "Mostra quais disciplinas estão vinculadas a cada professor.",
+  },
+  "frequencia-menor-media": {
+    titulo: "Frequência menor que a média",
+    descricao: "Mostra alunos com frequência abaixo da média.",
   },
 };
 
@@ -295,8 +308,10 @@ function App() {
   const [dados, setDados] = useState(estadoInicial);
   const [formulario, setFormulario] = useState({});
   const [editandoId, setEditandoId] = useState(null);
-  const [relatorioAtivo, setRelatorioAtivo] = useState("alunos-por-turma");
+  const [relatorioAtivo, setRelatorioAtivo] = useState("boletim-aluno");
+  const [dadosRelatorio, setDadosRelatorio] = useState([]);
   const [carregando, setCarregando] = useState(false);
+  const [carregandoRelatorio, setCarregandoRelatorio] = useState(false);
   const [erro, setErro] = useState("");
 
   const tela = telas[telaAtiva];
@@ -305,11 +320,13 @@ function App() {
     carregarTudo();
   }, []);
 
-  const metricas = useMemo(() => calcularMetricas(dados), [dados]);
+  useEffect(() => {
+    if (telaAtiva === "relatorios") {
+      carregarRelatorio(relatorioAtivo);
+    }
+  }, [telaAtiva, relatorioAtivo]);
 
-  const dadosRelatorio = useMemo(() => {
-    return gerarRelatorio(relatorioAtivo, dados);
-  }, [relatorioAtivo, dados]);
+  const metricas = useMemo(() => calcularMetricas(dados), [dados]);
 
   async function carregarTudo() {
     setCarregando(true);
@@ -357,6 +374,24 @@ function App() {
       setErro("Não foi possível carregar os dados. Verifique se o backend está rodando.");
     } finally {
       setCarregando(false);
+    }
+  }
+
+  async function carregarRelatorio(tipo) {
+    setCarregandoRelatorio(true);
+    setErro("");
+
+    try {
+      const resultado = await listarRelatorio(tipo);
+      setDadosRelatorio(resultado);
+    } catch (error) {
+      console.error(error);
+      setErro(
+        "Não foi possível carregar o relatório. Verifique se a view e a rota no backend existem."
+      );
+      setDadosRelatorio([]);
+    } finally {
+      setCarregandoRelatorio(false);
     }
   }
 
@@ -789,9 +824,21 @@ function App() {
                 <h3>{relatorios[relatorioAtivo].titulo}</h3>
                 <p>{relatorios[relatorioAtivo].descricao}</p>
               </div>
+
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => carregarRelatorio(relatorioAtivo)}
+              >
+                Atualizar view
+              </button>
             </div>
 
-            {dadosRelatorio.length === 0 ? (
+            {carregandoRelatorio ? (
+              <div className="empty">
+                <strong>Carregando relatório do banco...</strong>
+              </div>
+            ) : dadosRelatorio.length === 0 ? (
               <div className="empty">
                 <span>📊</span>
                 <strong>Nenhum dado encontrado</strong>
@@ -812,7 +859,13 @@ function App() {
                     {dadosRelatorio.map((linha, index) => (
                       <tr key={index}>
                         {Object.keys(linha).map((coluna) => (
-                          <td key={coluna}>{linha[coluna]}</td>
+                          <td key={coluna}>
+                            {linha[coluna] === null ||
+                            linha[coluna] === undefined ||
+                            linha[coluna] === ""
+                              ? "-"
+                              : String(linha[coluna])}
+                          </td>
                         ))}
                       </tr>
                     ))}
@@ -855,7 +908,16 @@ function App() {
           ))}
         </nav>
 
-        <button className="clear-button" onClick={carregarTudo}>
+        <button
+          className="clear-button"
+          onClick={() => {
+            carregarTudo();
+
+            if (telaAtiva === "relatorios") {
+              carregarRelatorio(relatorioAtivo);
+            }
+          }}
+        >
           Recarregar dados
         </button>
       </aside>
@@ -987,135 +1049,6 @@ function calcularMetricas(dados) {
     mediaGeral,
     percentualPresenca,
   };
-}
-
-function gerarRelatorio(tipo, dados) {
-  if (tipo === "alunos-por-turma") {
-    return dados.turmas.map((turma) => {
-      const matriculasAtivas = dados.matriculas.filter(
-        (matricula) =>
-          String(matricula.id_turma) === String(turma.id_turma) &&
-          matriculaEstaAtiva(matricula)
-      );
-
-      return {
-        turma: turma.nome || "-",
-        ano: turma.ano || "-",
-        semestre: turma.semestre || "-",
-        turno: turma.turno || "-",
-        total_alunos_ativos: matriculasAtivas.length,
-      };
-    });
-  }
-
-  if (tipo === "boletim-alunos") {
-    return dados.notas.map((nota) => {
-      const matricula = dados.matriculas.find(
-        (item) => String(item.id_matricula) === String(nota.id_matricula)
-      );
-
-      const aluno = dados.alunos.find(
-        (item) => String(item.id_aluno) === String(matricula?.id_aluno)
-      );
-
-      const turma = dados.turmas.find(
-        (item) => String(item.id_turma) === String(matricula?.id_turma)
-      );
-
-      const materia = dados.materias.find(
-        (item) => String(item.id_materia) === String(nota.id_materia)
-      );
-
-      const valorNota = Number(nota.nota);
-
-      let situacao = "-";
-
-      if (!Number.isNaN(valorNota)) {
-        if (valorNota >= 7) situacao = "Aprovado";
-        else if (valorNota >= 5) situacao = "Recuperação";
-        else situacao = "Reprovado";
-      }
-
-      return {
-        aluno: aluno?.nome || "-",
-        turma: turma?.nome || "-",
-        materia: materia?.nome || "-",
-        nota: nota.nota || "-",
-        situacao,
-      };
-    });
-  }
-
-  if (tipo === "frequencia-alunos") {
-    return dados.matriculas.map((matricula) => {
-      const aluno = dados.alunos.find(
-        (item) => String(item.id_aluno) === String(matricula.id_aluno)
-      );
-
-      const turma = dados.turmas.find(
-        (item) => String(item.id_turma) === String(matricula.id_turma)
-      );
-
-      const frequencias = dados.frequencias.filter(
-        (freq) => String(freq.id_matricula) === String(matricula.id_matricula)
-      );
-
-      const presencas = frequencias.filter(
-        (freq) => freq.presente === true || freq.presente === "Sim"
-      ).length;
-
-      const faltas = frequencias.filter(
-        (freq) => freq.presente === false || freq.presente === "Não"
-      ).length;
-
-      const percentual =
-        frequencias.length === 0
-          ? 0
-          : Math.round((presencas / frequencias.length) * 100);
-
-      return {
-        aluno: aluno?.nome || "-",
-        turma: turma?.nome || "-",
-        status_matricula: matricula.status || "-",
-        aulas_registradas: frequencias.length,
-        presencas,
-        faltas,
-        percentual_presenca: `${percentual}%`,
-      };
-    });
-  }
-
-  if (tipo === "aulas-professores") {
-    return dados.aulas.map((aula) => {
-      const turmaMateria = dados.turmaMaterias.find(
-        (item) =>
-          String(item.id_turma_materia) === String(aula.id_turma_materia)
-      );
-
-      const turma = dados.turmas.find(
-        (item) => String(item.id_turma) === String(turmaMateria?.id_turma)
-      );
-
-      const materia = dados.materias.find(
-        (item) => String(item.id_materia) === String(turmaMateria?.id_materia)
-      );
-
-      const professor = dados.professores.find(
-        (item) =>
-          String(item.id_professor) === String(turmaMateria?.id_professor)
-      );
-
-      return {
-        data_aula: aula.data_aula || "-",
-        professor: professor?.nome || "-",
-        materia: materia?.nome || "-",
-        turma: turma?.nome || "-",
-        conteudo: aula.conteudo || "-",
-      };
-    });
-  }
-
-  return [];
 }
 
 function formatarCabecalho(texto) {

@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 import app.models
+
 from app.routers.student_router import router as student_router
 from app.routers.teacher_router import router as teacher_router
 from app.routers.subject_router import router as subject_router
@@ -11,6 +13,8 @@ from app.routers.lesson_router import router as lesson_router
 from app.routers.grade_router import router as grade_router
 from app.routers.attendance_router import router as attendance_router
 from app.routers.user_router import router as user_router
+from app.routers.report_router import router as report_router
+
 
 app = FastAPI(
     title="School Management API"
@@ -37,3 +41,4 @@ app.include_router(lesson_router)
 app.include_router(grade_router)
 app.include_router(attendance_router)
 app.include_router(user_router)
+app.include_router(report_router)
